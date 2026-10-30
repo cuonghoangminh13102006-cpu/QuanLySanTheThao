@@ -1,3 +1,4 @@
+--Cơ sở dữ liệu--
 -- 1. Tạo Database
 CREATE DATABASE quan_ly_san_the_thao;
 GO
