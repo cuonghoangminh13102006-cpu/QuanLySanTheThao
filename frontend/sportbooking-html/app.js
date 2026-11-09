@@ -14,36 +14,22 @@
 
   const isAdminSection = page === 'admin' || page === 'accounts';
 
-  // 1. Nếu chưa đăng nhập: Yêu cầu đăng nhập và chuyển hướng về login.html
-  if (!currentUser || !currentUser.vaiTro) {
-    alert('Vui lòng đăng nhập để truy cập hệ thống!');
-    window.location.replace('../login.html');
-    return;
-  }
-
-  // 2. Nếu là Khách hàng: Không có quyền vào bất kỳ trang quản trị nào
-  if (currentUser.vaiTro === 'Khách hàng') {
-    alert('Tài khoản Khách hàng không có quyền truy cập trang quản trị!');
-    window.location.replace('../index.html');
-    return;
-  }
-
-  // 3. Phân quyền chặt chẽ giữa Admin và Chủ sân:
-  // - Nếu là Admin: Chỉ được quản lý tài khoản & giám sát hệ thống, không xem được chức năng của Chủ sân
-  if (currentUser.vaiTro === 'Admin') {
-    if (!isAdminSection) {
-      alert('Tài khoản Quản trị viên chỉ quản lý hệ thống, không truy cập chức năng Chủ sân!');
-      window.location.replace('quan-ly-tai-khoan.html');
-      return;
-    }
-  }
-
-  // - Nếu là Chủ sân: Chỉ quản lý sân, lịch đặt & báo cáo của cơ sở, không xem được menu của Admin
-  if (currentUser.vaiTro === 'Chủ sân') {
+  // 1. Tự động cấp quyền Demo nếu truy cập trực tiếp để trải nghiệm ngay giao diện
+  if (!currentUser || !currentUser.vaiTro || currentUser.vaiTro === 'Khách hàng') {
     if (isAdminSection) {
-      alert('Tài khoản Chủ sân không có quyền truy cập chức năng của Quản trị viên!');
-      window.location.replace('quan-ly-san.html');
-      return;
+      currentUser = { id: 'TK001', hoVaTen: 'Quản trị viên', email: 'admin', vaiTro: 'Admin' };
+    } else {
+      currentUser = { id: 'TK002', hoVaTen: 'Nguyễn Hoàng Anh', email: 'chusan@gmail.com', vaiTro: 'Chủ sân' };
+    }
+    try { sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch (_) {}
+  } else {
+    // Tự động đồng bộ vai trò khi chuyển đổi giữa cổng Admin và Chủ sân
+    if (currentUser.vaiTro === 'Admin' && !isAdminSection) {
+      currentUser = { id: 'TK002', hoVaTen: 'Nguyễn Hoàng Anh', email: 'chusan@gmail.com', vaiTro: 'Chủ sân' };
+      try { sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch (_) {}
+    } else if (currentUser.vaiTro === 'Chủ sân' && isAdminSection) {
+      currentUser = { id: 'TK001', hoVaTen: 'Quản trị viên', email: 'admin', vaiTro: 'Admin' };
+      try { sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch (_) {}
     }
   }
 
@@ -100,8 +86,48 @@
     return seed(); 
   };
 
+  const API_BASE = (window.location.origin && window.location.origin.includes('localhost'))
+    ? window.location.origin + '/api'
+    : 'http://localhost:8080/api';
+
   let state = load();
   if (!localStorage.getItem(KEY)) localStorage.setItem(KEY, JSON.stringify(state));
+
+  async function syncFromBackend() {
+    try {
+      const [resCourts, resUsers] = await Promise.all([
+        fetch(`${API_BASE}/owner/courts`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${API_BASE}/admin/users`).then(r => r.ok ? r.json() : null).catch(() => null)
+      ]);
+      let changed = false;
+      if (resCourts && Array.isArray(resCourts)) {
+        resCourts.forEach(c => {
+          const idx = state.courts.findIndex(sc => sc.id === c.id);
+          if (idx >= 0) {
+            state.courts[idx] = { ...state.courts[idx], ...c };
+          } else {
+            state.courts.push(c);
+            changed = true;
+          }
+        });
+      }
+      if (resUsers && Array.isArray(resUsers)) {
+        resUsers.forEach(u => {
+          const idx = state.accounts.findIndex(sa => sa.id === u.id);
+          if (idx >= 0) {
+            state.accounts[idx] = { ...state.accounts[idx], ...u };
+          } else {
+            state.accounts.push(u);
+            changed = true;
+          }
+        });
+      }
+      if (changed) {
+        save();
+        render();
+      }
+    } catch (_) {}
+  }
 
   const ui = {
     scheduleDate: today,
@@ -148,14 +174,17 @@
     return conflict ? 'Khung giờ này trùng với một đơn còn hiệu lực. Vui lòng chọn thời gian khác.' : '';
   };
 
-  const isAdminSection = page === 'admin' || page === 'accounts';
-
   // THANH ĐIỀU HƯỚNG SIDEBAR THEO VAI TRÒ (RBAC NAVIGATION)
   const nav = isAdminSection 
     ? `<div class="side-label">Quản trị hệ thống</div>
        <nav>
          <a class="nav-link ${page==='accounts'?'active':''}" href="quan-ly-tai-khoan.html"><span class="nav-icon">👥</span>Quản lý tài khoản</a>
          <a class="nav-link ${page==='admin'?'active':''}" href="giam-sat.html"><span class="nav-icon">◉</span>Giám sát toàn hệ thống</a>
+       </nav>
+       <div class="side-label">Chuyển vai trò</div>
+       <nav>
+         <a class="nav-link" href="quan-ly-san.html"><span class="nav-icon">🏸</span>Kênh Chủ sân</a>
+         <a class="nav-link" href="../index.html"><span class="nav-icon">🏠</span>Trang chủ Khách hàng</a>
        </nav>
        <div class="side-label">Tài khoản</div>
        <nav>
@@ -166,6 +195,11 @@
          <a class="nav-link ${page==='courts'?'active':''}" href="quan-ly-san.html"><span class="nav-icon">⛳</span>Quản lý sân</a>
          <a class="nav-link ${page==='schedule'?'active':''}" href="index.html"><span class="nav-icon">▦</span>Lịch và đơn đặt</a>
          <a class="nav-link ${page==='payments'?'active':''}" href="thanh-toan-bao-cao.html"><span class="nav-icon">◫</span>Thanh toán và báo cáo</a>
+       </nav>
+       <div class="side-label">Chuyển vai trò</div>
+       <nav>
+         <a class="nav-link" href="quan-ly-tai-khoan.html"><span class="nav-icon">🛡️</span>Cổng Quản trị Admin</a>
+         <a class="nav-link" href="../index.html"><span class="nav-icon">🏠</span>Trang chủ Khách hàng</a>
        </nav>
        <div class="side-label">Tài khoản</div>
        <nav>
@@ -226,7 +260,6 @@
       }
     });
   }
-  `;
 
   let toastTimer;
   function toast(message, error=false){
@@ -1098,7 +1131,7 @@
       if (state.courts.some(c => c.id.toLowerCase() === d.id.trim().toLowerCase())) {
         message = 'Mã sân đã tồn tại, vui lòng nhập mã khác!';
       } else {
-        state.courts.push({
+        const newCourtData = {
           id: d.id.trim(),
           name: d.name.trim(),
           facility: d.facility.trim(),
@@ -1112,7 +1145,13 @@
           ownerId: ownerId,
           owner: 'Nguyễn Hoàng Anh',
           description: d.description || ''
-        });
+        };
+        state.courts.push(newCourtData);
+        fetch(`${API_BASE}/owner/courts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newCourtData)
+        }).catch(() => {});
         toast('Thêm sân thành công!');
       }
     }
@@ -1148,14 +1187,20 @@
       } else if (state.accounts.some(a => a.phone === d.phone.trim())) {
         message = 'Số điện thoại đã tồn tại trong hệ thống!';
       } else {
-        state.accounts.push({
+        const newAccData = {
           id: d.id.trim(),
           name: d.name.trim(),
           email: d.email.trim(),
           phone: d.phone.trim(),
           role: d.role,
           status: 'Hoạt động'
-        });
+        };
+        state.accounts.push(newAccData);
+        fetch(`${API_BASE}/admin/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newAccData)
+        }).catch(() => {});
         toast('Thêm tài khoản thành công!');
       }
     }
@@ -1180,6 +1225,17 @@
           rent: Math.round(c.price * hours), service: 0, deposit: 0,
           status: 'Chờ xử lý', reason: '', created: today
         });
+        fetch(`${API_BASE}/bookings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: d.account.trim(),
+            courtId: d.courtId,
+            date: d.date,
+            start: d.start,
+            end: d.end
+          })
+        }).catch(() => {});
         ui.scheduleDate = d.date;
         ui.scheduleCourt = d.courtId;
         toast(`Đã tạo đơn ${id}.`);
@@ -1261,4 +1317,5 @@
   });
 
   render();
+  syncFromBackend();
 })();

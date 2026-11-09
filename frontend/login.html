@@ -209,7 +209,7 @@
                         <div class="divider">HOẶC</div>
 
                         <!-- Đăng nhập bằng Google -->
-                        <button type="button" class="btn btn-google w-100" id="btnGoogleLogin">
+                        <button type="button" class="btn btn-google w-100 mb-3" id="btnGoogleLogin">
                             <svg class="me-2" style="width:18px;height:18px;vertical-align:-3px;" viewBox="0 0 24 24">
                                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"/>
                                 <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.13C3.27 21.39 7.32 24 12 24z"/>
@@ -218,6 +218,22 @@
                             </svg>
                             Đăng nhập bằng tài khoản Google
                         </button>
+
+                        <!-- TRUY CẬP NHANH CỔNG QUẢN TRỊ / CHỦ SÂN -->
+                        <div class="pt-3 border-top">
+                            <div class="text-center text-muted small mb-2 fw-semibold">Truy cập nhanh cổng giao diện:</div>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-semibold" onclick="quickLogin('admin','1234')">
+                                    🛡️ Vào Cổng Quản trị viên (Admin)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="quickLogin('chusan@gmail.com','123456')">
+                                    🏸 Vào Cổng Chủ sân (Owner)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary fw-semibold" onclick="quickLogin('khachhang1@gmail.com','123456')">
+                                    👤 Vào Trang Khách hàng
+                                </button>
+                            </div>
+                        </div>
                     </form>
                 </div>
 
@@ -295,8 +311,10 @@
 
     <!-- XỬ LÝ SỰ KIỆN & VALIDATION THEO ĐẶC TẢ USE CASE -->
     <script>
-        // Địa chỉ Backend Java API
-        const BACKEND_API_URL = "http://localhost:8080/api";
+        // Địa chỉ Backend Java API (tự động điều chỉnh theo host hiện tại)
+        const BACKEND_API_URL = (window.location.origin && window.location.origin.includes('localhost'))
+            ? window.location.origin + '/api'
+            : 'http://localhost:8080/api';
 
         // Dữ liệu mẫu mô phỏng Database TAIKHOAN (theo schema.sql và seeddata.sql)
         // Dùng làm Fallback khi Backend server chưa khởi chạy để trải nghiệm ngay trên trình duyệt
@@ -549,6 +567,13 @@
                 }, 1000);
             }, 800);
         });
+        // Đăng nhập nhanh
+        function quickLogin(u, p) {
+            document.getElementById('methodEmail').checked = true;
+            document.getElementById('loginIdentifier').value = u;
+            document.getElementById('loginPassword').value = p;
+            document.getElementById('formLogin').dispatchEvent(new Event('submit'));
+        }
     </script>
 </body>
 </html>

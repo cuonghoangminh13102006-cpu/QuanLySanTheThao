@@ -397,6 +397,29 @@ window.SportStore = {
   addBooking(booking) {
     this.bookings.unshift(booking);
     Storage.set("bookings", this.bookings);
+
+    // Đồng bộ đơn đặt lên Backend API
+    try {
+      const apiBase = (window.location.origin && window.location.origin.includes('localhost'))
+        ? window.location.origin + '/api'
+        : 'http://localhost:8080/api';
+      fetch(`${apiBase}/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: this.user?.id || "TK003",
+          courtId: booking.yardName || "S001",
+          date: booking.dateString || new Date().toISOString().slice(0, 10),
+          start: booking.startTime || "18:00",
+          end: booking.endTime || "19:00"
+        })
+      }).then(r => r.ok ? r.json() : null).then(data => {
+        if (data && data.orderId) {
+          booking.backendOrderId = data.orderId;
+        }
+      }).catch(() => {});
+    } catch (_) {}
+
     return booking;
   },
 
