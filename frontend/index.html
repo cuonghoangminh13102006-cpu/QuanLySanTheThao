@@ -52,13 +52,14 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <span>Tìm kiếm sân…</span>
         </div>
-        <a href="login.html" class="navbar-auth-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-full); font-size: 13.5px; font-weight: 600; color: var(--primary); background: var(--primary-container); border: 1px solid rgba(18,181,166,0.25); transition: all var(--transition-fast);">
+
+        <a href="login.html" class="navbar-auth-btn" id="navbar-login-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-full); font-size: 13.5px; font-weight: 600; color: var(--primary); background: var(--primary-container); border: 1px solid rgba(18,181,166,0.25); transition: all var(--transition-fast);">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          <span>Đăng nhập</span>
+          <span id="navbar-login-text">Đăng nhập</span>
         </a>
-        <div class="navbar-user-chip" data-nav="account" onclick="navigateTo('account')">
-          <div class="user-avatar" id="desktop-user-avatar">H</div>
-          <span class="user-name" id="desktop-user-name">Nguyễn Văn Hùng</span>
+        <div class="navbar-user-chip" id="navbar-user-chip" data-nav="account" onclick="navigateTo('account')" style="display: none;">
+          <div class="user-avatar" id="desktop-user-avatar">K</div>
+          <span class="user-name" id="desktop-user-name">Khách hàng</span>
         </div>
       </div>
     </div>
@@ -304,13 +305,6 @@
               <div class="account-menu-left">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 <span>Đăng nhập / Đổi tài khoản khác</span>
-              </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </a>
-            <a href="sportbooking-html/index.html" class="account-menu-item" style="text-decoration: none; color: inherit;">
-              <div class="account-menu-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span>Cổng quản lý Chủ sân & Quản trị viên</span>
               </div>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
@@ -754,5 +748,55 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- Script kiểm tra phân quyền & thông tin tài khoản (RBAC) -->
+  <script>
+    (function() {
+      try {
+        const user = JSON.parse(sessionStorage.getItem('currentUser') || 'null');
+        const loginBtn = document.getElementById('navbar-login-btn');
+        const userChip = document.getElementById('navbar-user-chip');
+
+        if (user && user.vaiTro) {
+          // Phân quyền bảo vệ: Nếu là Admin hoặc Chủ sân thì chuyển về đúng cổng của họ
+          if (user.vaiTro === 'Admin') {
+            window.location.replace('admin.html');
+            return;
+          }
+          if (user.vaiTro === 'Chủ sân') {
+            window.location.replace('owner.html');
+            return;
+          }
+          // Nếu là Khách hàng: Cập nhật thông tin hiển thị
+          if (user.vaiTro === 'Khách hàng') {
+            const nameEl = document.getElementById('desktop-user-name');
+            const avatarEl = document.getElementById('desktop-user-avatar');
+            const homeGreeting = document.getElementById('home-greeting-name');
+            const accountName = document.getElementById('account-name-text');
+            const accountEmail = document.getElementById('account-identifier-text');
+
+            if (user.hoVaTen) {
+              if (nameEl) nameEl.textContent = user.hoVaTen;
+              if (accountName) accountName.textContent = user.hoVaTen;
+              if (homeGreeting) homeGreeting.textContent = `Chào mừng ${user.hoVaTen} trở lại 👋`;
+              if (avatarEl) avatarEl.textContent = user.hoVaTen.trim().charAt(0).toUpperCase();
+            }
+            if (user.email && accountEmail) {
+              accountEmail.textContent = user.email;
+            }
+            // Ẩn nút đăng nhập, hiển thị chip người dùng
+            if (loginBtn) loginBtn.style.display = 'none';
+            if (userChip) userChip.style.display = 'inline-flex';
+          }
+        } else {
+          // Chưa đăng nhập -> Hiện nút Đăng nhập, ẩn chip người dùng
+          if (loginBtn) loginBtn.style.display = 'inline-flex';
+          if (userChip) userChip.style.display = 'none';
+        }
+      } catch (err) {
+        console.warn('Lỗi đọc session user:', err);
+      }
+    })();
+  </script>
 </body>
 </html>

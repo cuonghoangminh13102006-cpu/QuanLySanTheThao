@@ -458,24 +458,9 @@
                     showAlert(data.message || 'Lỗi đăng ký, vui lòng thử lại', 'danger');
                 }
             } catch (err) {
-                // FALLBACK XỬ LÝ (Nếu backend chưa khởi động, thực hiện đăng ký vào bộ nhớ mô phỏng CSDL)
-                console.warn('Không thể kết nối Backend HTTP Server:', err);
-                // Kiểm tra xem số điện thoại hoặc email đã tồn tại trong mock DB chưa
-                const exists = mockDatabase.some(u => u.email.toLowerCase() === email.toLowerCase() || u.soDienThoai === phone);
-                if (exists) {
-                    showAlert('Số điện thoại hoặc Email đã tồn tại trên hệ thống', 'danger');
-                    return;
-                }
-
-                // Lưu vào bảng TAIKHOAN mô phỏng
-                mockDatabase.push(payload);
-                showAlert('Đăng ký thành công', 'success');
-                document.getElementById('formRegister').reset();
-                setTimeout(() => {
-                    const tabLogin = new bootstrap.Tab(document.getElementById('tab-login'));
-                    tabLogin.show();
-                    document.getElementById('loginIdentifier').value = email;
-                }, 1500);
+                // Luồng rẽ nhánh 3: Nếu không kết nối được hệ thống / CSDL -> Hiển thị "Lỗi kết nối hệ thống"
+                console.error('Không thể kết nối đến Backend Server:', err);
+                showAlert('Lỗi kết nối hệ thống (Vui lòng khởi động Backend Java: java login.java)', 'danger');
             }
         });
 
@@ -529,9 +514,11 @@
                     showAlert('Đăng nhập thành công', 'success');
                     sessionStorage.setItem('currentUser', JSON.stringify(data.user));
                     setTimeout(() => {
-                        // Nếu là Admin thì chuyển sang trang admin, nếu khách hàng quay về trang chủ
+                        // Điều hướng chính xác theo phân quyền (RBAC)
                         if (data.user && data.user.vaiTro === 'Admin') {
                             window.location.href = 'admin.html';
+                        } else if (data.user && data.user.vaiTro === 'Chủ sân') {
+                            window.location.href = 'owner.html';
                         } else {
                             window.location.href = 'index.html';
                         }
@@ -541,32 +528,9 @@
                     showAlert(data.message || 'Đăng nhập thất bại, vui lòng thử lại', 'danger');
                 }
             } catch (err) {
-                // FALLBACK XỬ LÝ (Nếu backend chưa khởi động, xác thực đối chiếu với dữ liệu mẫu trong CSDL)
-                console.warn('Không thể kết nối Backend HTTP Server:', err);
-                const matchedUser = mockDatabase.find(u => {
-                    const matchId = (u.email.toLowerCase() === identifier.toLowerCase()) || (u.soDienThoai === identifier);
-                    const matchPass = (u.matKhau === password);
-                    return matchId && matchPass;
-                });
-
-                if (matchedUser) {
-                    showAlert('Đăng nhập thành công', 'success');
-                    sessionStorage.setItem('currentUser', JSON.stringify({
-                        hoVaTen: matchedUser.hoVaTen,
-                        email: matchedUser.email,
-                        vaiTro: matchedUser.vaiTro
-                    }));
-                    setTimeout(() => {
-                        if (matchedUser.vaiTro === 'Admin') {
-                            window.location.href = 'admin.html';
-                        } else {
-                            window.location.href = 'index.html';
-                        }
-                    }, 1200);
-                } else {
-                    // Nhập sai thông tin: hiển thị đúng thông báo "Đăng nhập thất bại, vui lòng thử lại"
-                    showAlert('Đăng nhập thất bại, vui lòng thử lại', 'danger');
-                }
+                // Luồng rẽ nhánh 3: Nếu không kết nối được hệ thống / CSDL -> Hiển thị "Lỗi kết nối hệ thống"
+                console.error('Không thể kết nối Backend HTTP Server:', err);
+                showAlert('Lỗi kết nối hệ thống (Vui lòng khởi động Backend Java: java login.java)', 'danger');
             }
         });
 

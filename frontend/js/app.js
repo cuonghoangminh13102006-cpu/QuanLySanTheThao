@@ -1066,15 +1066,7 @@ function saveUserProfile() {
 function handleLogout() {
   if (confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
     try { sessionStorage.removeItem("currentUser"); } catch (e) {}
-    SportStore.saveUser({
-      id: "usr_guest",
-      displayName: "Khách",
-      identifier: "guest@sportbooking.vn",
-      phone: "",
-      passwordLogin: false
-    });
-    updateUserUI();
-    showToast("Đã đăng xuất tài khoản.");
+    window.location.href = "login.html";
   }
 }
 
