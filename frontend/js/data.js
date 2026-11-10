@@ -372,7 +372,7 @@ window.SportStore = {
     return Storage.get("user", DEFAULT_USER);
   })(),
   favorites: new Set(Storage.get("favorites", ["ven_001", "ven_003"])),
-  bookings: Storage.get("bookings", INITIAL_BOOKINGS),
+  bookings: [],
   recentSearches: Storage.get("recentSearches", ["Pickleball Phú Nhuận", "Cầu lông", "Sân cỏ nhân tạo"]),
 
   saveUser(user) {

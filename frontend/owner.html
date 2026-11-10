@@ -6,6 +6,21 @@
   <title>Cổng Chủ Sân - SportBooking</title>
   <link rel="stylesheet" href="css/anta-portal.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    // Kiểm tra quyền truy cập: chỉ cho Chủ sân và Admin
+    (function() {
+      try {
+        var sess = sessionStorage.getItem("currentUser");
+        if (!sess) { window.location.href = "login.html"; return; }
+        var u = JSON.parse(sess);
+        var role = (u.vaiTro || u.role || "").toLowerCase();
+        if (role !== "chủ sân" && role !== "owner" && role !== "admin") {
+          alert("Bạn không có quyền truy cập trang này. Vui lòng đăng nhập bằng tài khoản Chủ sân.");
+          window.location.href = "login.html";
+        }
+      } catch(e) { window.location.href = "login.html"; }
+    })();
+  </script>
   <style>
     /* Bổ sung style trực quan cho biểu đồ và heatmap */
     .bar-chart {
@@ -1221,7 +1236,7 @@
 
   <!-- SCRIPT ĐIỀU KHIỂN GIAO DIỆN CHỦ SÂN -->
   <script>
-    // Dữ liệu mẫu phong phú và khớp 100% PDF Anta
+    // Dữ liệu mẫu - sẽ được ghi đè bởi API
     const courtsList = [
       { id: 'C1', name: 'Sân Cầu lông 1', type: 'badminton', surface: 'Thảm Yonex' },
       { id: 'C2', name: 'Sân Cầu lông 2', type: 'badminton', surface: 'Thảm Yonex' },
@@ -1231,123 +1246,10 @@
       { id: 'P2', name: 'Sân Pickleball 2', type: 'pickleball', surface: 'Sơn Acrylic' }
     ];
 
-    let bookingsData = [
-      {
-        id: 'AN-1510-0142',
-        customer: 'Lê Hoàng Long',
-        phone: '0903 888 999',
-        court: 'Sân Cầu lông 2',
-        courtType: 'Cầu lông',
-        date: '2026-10-15',
-        time: '17:00 - 19:00',
-        services: '2 Pocari, 2 Vợt Yonex',
-        total: 300000,
-        payment: 'paid',
-        status: 'pending',
-        statusText: 'Chờ xác nhận',
-        note: 'Khách xin chuẩn bị trước 1 rổ cầu để khởi động.'
-      },
-      {
-        id: 'AN-1510-0141',
-        customer: 'Nguyễn Văn Nam',
-        phone: '0918 222 333',
-        court: 'Sân Cầu lông 1',
-        courtType: 'Cầu lông',
-        date: '2026-10-15',
-        time: '18:00 - 20:00',
-        services: '4 Nước suối',
-        total: 240000,
-        payment: 'paid',
-        status: 'confirmed',
-        statusText: 'Đã xác nhận',
-        note: ''
-      },
-      {
-        id: 'AN-1510-0140',
-        customer: 'Trần Minh Quang',
-        phone: '0977 123 456',
-        court: 'Sân Pickleball 1',
-        courtType: 'Pickleball',
-        date: '2026-10-15',
-        time: '19:00 - 21:00',
-        services: 'Hộp bóng 3 quả',
-        total: 355000,
-        payment: 'paid',
-        status: 'confirmed',
-        statusText: 'Đã xác nhận',
-        note: 'Khách yêu cầu hạ lưới chuẩn thi đấu.'
-      },
-      {
-        id: 'AN-1510-0139',
-        customer: 'Phạm Quỳnh Anh',
-        phone: '0945 666 777',
-        court: 'Sân Cầu lông 3',
-        courtType: 'Cầu lông',
-        date: '2026-10-15',
-        time: '08:00 - 10:00',
-        services: 'Không',
-        total: 160000,
-        payment: 'paid',
-        status: 'completed',
-        statusText: 'Đã xong',
-        note: ''
-      },
-      {
-        id: 'AN-1510-0138',
-        customer: 'Đỗ Thành Trung',
-        phone: '0933 999 111',
-        court: 'Sân Cầu lông 4',
-        courtType: 'Cầu lông',
-        date: '2026-10-15',
-        time: '16:00 - 17:00',
-        services: '1 Nước suối',
-        total: 90000,
-        payment: 'paid',
-        status: 'pending',
-        statusText: 'Chờ xác nhận',
-        note: ''
-      },
-      {
-        id: 'AN-1510-0135',
-        customer: 'Hoàng Bách',
-        phone: '0908 777 888',
-        court: 'Sân Pickleball 2',
-        courtType: 'Pickleball',
-        date: '2026-10-15',
-        time: '17:00 - 18:00',
-        services: 'Không',
-        total: 160000,
-        payment: 'paid',
-        status: 'pending',
-        statusText: 'Chờ xác nhận',
-        note: ''
-      }
-    ];
+    let bookingsData = [];
+    let cancelRequests = [];
 
-    let cancelRequests = [
-      {
-        id: 'AN-1510-0130',
-        customer: 'Lê Văn Đức',
-        phone: '0912 345 678',
-        court: 'Sân Cầu lông 3',
-        time: '19:00 - 21:00 (Hôm nay)',
-        reason: 'Bận đột xuất công tác, xin huỷ trước 4 tiếng',
-        amount: 240000,
-        cancelTime: '15:00 - 15/10/2026'
-      },
-      {
-        id: 'AN-1510-0125',
-        customer: 'Trần Thị Mai',
-        phone: '0909 555 444',
-        court: 'Sân Pickleball 1',
-        time: '18:00 - 19:00 (Hôm nay)',
-        reason: 'Trời mưa to ngập đường không qua được',
-        amount: 160000,
-        cancelTime: '15:15 - 15/10/2026'
-      }
-    ];
-
-    let currentSelectedOrder = bookingsData[0];
+    let currentSelectedOrder = null;
     let currentCancelActionItem = null;
 
     // Khởi tạo
@@ -1362,20 +1264,58 @@
 
       renderHeatmap();
       renderSchedule();
-      renderBookingsTable(bookingsData);
+      renderBookingsTable([]);
       renderCancelTable();
       updateBadgeCounts();
 
-      // Cố gắng nạp thêm dữ liệu từ backend API nếu máy chủ có sẵn
-      fetchBackendCourts();
+      // Nạp dữ liệu thực từ backend API
+      loadOwnerData();
     });
 
-    async function fetchBackendCourts() {
+    async function loadOwnerData() {
       try {
-        const res = await fetch('/api/owner/courts');
-        if (res.ok) {
-          const list = await res.json();
-          console.log('[BE] Loaded owner courts:', list);
+        // Load courts
+        const courtsRes = await fetch('/api/owner/courts');
+        if (courtsRes.ok) {
+          const list = await courtsRes.json();
+          if (Array.isArray(list) && list.length > 0) {
+            courtsList.length = 0;
+            list.forEach(c => courtsList.push({
+              id: c.courtId || c.id,
+              name: c.tenSan || c.name,
+              type: c.loaiHinh || c.type || 'badminton',
+              surface: c.chatLieu || c.surface || ''
+            }));
+          }
+        }
+      } catch (_) {}
+
+      try {
+        // Load bookings
+        const bkRes = await fetch('/api/owner/bookings');
+        if (bkRes.ok) {
+          const list = await bkRes.json();
+          if (Array.isArray(list)) {
+            bookingsData = list.map(b => ({
+              id: b.orderId || b.id,
+              customer: b.customerName || b.accountName || 'Khách hàng',
+              phone: b.customerPhone || b.phone || '',
+              court: b.courtName || b.court || '',
+              courtType: b.courtType || '',
+              date: b.date || '',
+              time: (b.start || '') + ' - ' + (b.end || ''),
+              services: b.services || 'Không',
+              total: b.amount || b.total || 0,
+              payment: 'paid',
+              status: (b.status || 'pending').toLowerCase(),
+              statusText: b.statusText || b.status || 'Chờ xác nhận',
+              note: b.note || ''
+            }));
+            if (bookingsData.length > 0) currentSelectedOrder = bookingsData[0];
+            renderBookingsTable(bookingsData);
+            renderSchedule();
+            updateBadgeCounts();
+          }
         }
       } catch (_) {}
     }

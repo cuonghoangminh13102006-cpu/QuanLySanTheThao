@@ -49,10 +49,11 @@ const Format = {
 
 document.addEventListener("DOMContentLoaded", () => {
   updateUserUI();
+  updateNavMenuVisibility();     // ← ẩn/hiện menu Chủ sân & Admin
   renderSportChips();
   renderHomeVenues();
   renderExploreScreen();
-  renderBookingsScreen();
+  loadBookingsFromAPI();         // ← tải bookings từ backend thay vì dữ liệu ảo
 
   // Route based on URL hash if provided
   const hash = window.location.hash.replace("#", "");
@@ -66,6 +67,94 @@ document.addEventListener("DOMContentLoaded", () => {
     if (leafletMap) leafletMap.invalidateSize();
   });
 });
+
+// ==========================================================================
+// AUTH HELPERS: ẩn/hiện menu Chủ sân & Admin tuỳ theo vai trò
+// ==========================================================================
+function getCurrentUser() {
+  try {
+    const sess = sessionStorage.getItem("currentUser");
+    if (sess) return JSON.parse(sess);
+  } catch (e) {}
+  return null;
+}
+
+function isLoggedIn() {
+  const u = getCurrentUser();
+  return u && (u.hoVaTen || u.email);
+}
+
+function updateNavMenuVisibility() {
+  const ownerLink = document.getElementById("nav-owner-link");
+  const adminLink = document.getElementById("nav-admin-link");
+  if (!ownerLink || !adminLink) return;
+
+  const user = getCurrentUser();
+  if (!user) {
+    ownerLink.style.display = "none";
+    adminLink.style.display = "none";
+    return;
+  }
+
+  const role = (user.vaiTro || user.role || "").toLowerCase();
+  // Chủ sân được thấy link Chủ sân
+  ownerLink.style.display = (role === "chủ sân" || role === "owner") ? "inline-flex" : "none";
+  // Admin được thấy cả hai
+  adminLink.style.display = (role === "admin") ? "inline-flex" : "none";
+  if (role === "admin") ownerLink.style.display = "inline-flex"; // admin cũng thấy owner portal
+}
+
+// ==========================================================================
+// LOAD BOOKINGS TỪ API BACKEND
+// ==========================================================================
+function loadBookingsFromAPI() {
+  if (!isLoggedIn()) {
+    SportStore.bookings = [];
+    renderBookingsScreen();
+    return;
+  }
+  const user = getCurrentUser();
+  const apiBase = window.location.origin + "/api";
+  fetch(`${apiBase}/bookings`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (Array.isArray(data)) {
+        // Lọc theo tài khoản hiện tại
+        const myEmail = (user.email || "").toLowerCase();
+        const myId = user.maTaiKhoan || user.id || "";
+        SportStore.bookings = data
+          .filter(b => {
+            const bEmail = (b.accountEmail || b.email || "").toLowerCase();
+            const bId = b.accountId || b.maTaiKhoan || "";
+            return bEmail === myEmail || bId === myId || myEmail === "";
+          })
+          .map(b => ({
+            id: b.orderId || b.id || ("BK-" + Math.random().toString(36).substr(2,6).toUpperCase()),
+            branchId: b.courtId || "",
+            branchName: b.courtName || b.branchName || "Sân thể thao",
+            branchAddress: b.courtAddress || b.branchAddress || "",
+            branchImage: b.courtImage || b.branchImage || "https://images.unsplash.com/photo-1613918431703-aa6321c1f7a0?w=400&auto=format&fit=crop",
+            yardName: b.courtName || b.yardName || "Sân",
+            dateString: b.date || b.dateString || "",
+            startTime: b.start || b.startTime || "00:00",
+            endTime: b.end || b.endTime || "00:00",
+            hoursCount: b.hoursCount || 1,
+            amount: b.amount || b.totalPrice || 0,
+            status: b.status || "CONFIRMED",
+            createdAt: b.createdAt || Date.now(),
+            paymentExpiresAt: null
+          }));
+      } else {
+        SportStore.bookings = [];
+      }
+      renderBookingsScreen();
+      updateUserUI();
+    })
+    .catch(() => {
+      SportStore.bookings = [];
+      renderBookingsScreen();
+    });
+}
 
 // ==========================================================================
 // NAVIGATION & ROUTING
@@ -606,32 +695,67 @@ function updateSlotSelectionSummary() {
 function confirmBookingFromSelection() {
   if (!selectedSlotState || selectedSlotState.hours.length === 0) return;
 
+  // ===== KIỂM TRA ĐĂNG NHẬP TRƯỚC KHI ĐẶT SÂN =====
+  if (!isLoggedIn()) {
+    if (confirm("Bạn cần đăng nhập để đặt sân. Chuyển đến trang đăng nhập?")) {
+      window.location.href = "login.html";
+    }
+    return;
+  }
+
   const venue = SportStore.getVenueById(currentVenueId);
   const hours = selectedSlotState.hours;
   const startH = Math.min(...hours);
   const endH = Math.max(...hours) + 1;
   const totalAmount = selectedSlotState.prices.reduce((a, b) => a + b, 0);
+  const user = getCurrentUser();
 
-  const newBooking = {
-    id: "BK-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
-    branchId: venue.id,
-    branchName: venue.name,
-    branchAddress: venue.address,
-    branchImage: venue.images[0],
-    yardName: selectedSlotState.yardName,
-    dateString: selectedDateObj.toISOString().split("T")[0],
-    startTime: `${startH < 10 ? '0' : ''}${startH}:00`,
-    endTime: `${endH < 10 ? '0' : ''}${endH}:00`,
+  const bookingPayload = {
+    accountId: user.maTaiKhoan || user.id || "TK003",
+    accountEmail: user.email || "",
+    courtId: selectedSlotState.yardId || "S001",
+    courtName: selectedSlotState.yardName,
+    branchName: venue ? venue.name : "",
+    branchAddress: venue ? venue.address : "",
+    branchImage: venue ? (venue.images && venue.images[0]) : "",
+    date: selectedDateObj.toISOString().split("T")[0],
+    start: `${startH < 10 ? '0' : ''}${startH}:00`,
+    end: `${endH < 10 ? '0' : ''}${endH}:00`,
     hoursCount: hours.length,
-    amount: totalAmount,
-    status: "PENDING_PAYMENT",
-    createdAt: Date.now(),
-    paymentExpiresAt: Date.now() + 15 * 60 * 1000 // 15 mins hold
+    amount: totalAmount
   };
 
-  SportStore.addBooking(newBooking);
-  showToast("Giữ chỗ thành công! Vui lòng hoàn tất thanh toán.");
-  openBookingDetail(newBooking.id);
+  const apiBase = window.location.origin + "/api";
+  fetch(`${apiBase}/bookings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bookingPayload)
+  })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    const newBooking = {
+      id: (data && data.orderId) ? data.orderId : ("BK-" + Math.random().toString(36).substring(2, 8).toUpperCase()),
+      branchId: venue ? venue.id : "",
+      branchName: bookingPayload.branchName,
+      branchAddress: bookingPayload.branchAddress,
+      branchImage: bookingPayload.branchImage,
+      yardName: bookingPayload.courtName,
+      dateString: bookingPayload.date,
+      startTime: bookingPayload.start,
+      endTime: bookingPayload.end,
+      hoursCount: bookingPayload.hoursCount,
+      amount: totalAmount,
+      status: "CONFIRMED",
+      createdAt: Date.now(),
+      paymentExpiresAt: null
+    };
+    SportStore.bookings.unshift(newBooking);
+    showToast("🎉 Đặt sân thành công!");
+    openBookingDetail(newBooking.id);
+  })
+  .catch(() => {
+    showToast("❌ Lỗi kết nối server. Vui lòng thử lại.");
+  });
 }
 
 // ==========================================================================
@@ -745,6 +869,15 @@ function confirmCancelBooking() {
 function doCancelBooking() {
   closeModal("modal-cancel-booking");
   if (!currentBooking) return;
+
+  const apiBase = window.location.origin + "/api";
+  const bookingId = currentBooking.backendOrderId || currentBooking.id;
+
+  fetch(`${apiBase}/bookings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "cancel", orderId: bookingId })
+  }).catch(() => {});
 
   SportStore.updateBookingStatus(currentBooking.id, "CANCELLED");
   currentBooking.status = "CANCELLED";
@@ -1002,10 +1135,11 @@ function renderFavoritesScreen() {
 
 function updateUserUI() {
   const user = SportStore.user;
+  const loggedIn = isLoggedIn();
 
   // Header & Profile Card
   const greeting = document.getElementById("home-greeting-name");
-  if (greeting) greeting.textContent = `Chào ${user.displayName} 👋`;
+  if (greeting) greeting.textContent = loggedIn ? `Chào ${user.displayName} 👋` : "Chào mừng bạn 👋";
 
   const avatarInitial = user.displayName ? user.displayName.trim().charAt(0).toUpperCase() : "U";
 
@@ -1026,6 +1160,22 @@ function updateUserUI() {
 
   const accIdent = document.getElementById("account-identifier-text");
   if (accIdent) accIdent.textContent = user.identifier;
+
+  // Hiển thị nút Login hoặc User Chip
+  const loginBtn = document.getElementById("navbar-login-btn");
+  const userChip = document.getElementById("navbar-user-chip");
+  if (loginBtn && userChip) {
+    if (loggedIn) {
+      loginBtn.style.display = "none";
+      userChip.style.display = "inline-flex";
+    } else {
+      loginBtn.style.display = "inline-flex";
+      userChip.style.display = "none";
+    }
+  }
+
+  // Cập nhật lại visibility menu Chủ sân / Admin
+  updateNavMenuVisibility();
 
   // Stats Counters
   const bkCount = document.getElementById("stat-bookings-count");
