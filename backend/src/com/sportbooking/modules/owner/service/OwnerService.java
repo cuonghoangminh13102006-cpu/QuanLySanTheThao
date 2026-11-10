@@ -1,14 +1,14 @@
 package com.sportbooking.modules.owner.service;
 
 import com.sportbooking.modules.catalog.model.Court;
+import com.sportbooking.modules.booking.model.BookingOrder;
 import com.sportbooking.shared.database.InMemoryStore;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Nghiệp vụ quản lý của Chủ sân (UC 3, UC 5)
- * Tương ứng modules/owner/service.ts trong anta-backend
+ * Nghiệp vụ quản lý của Chủ sân SportBooking
  */
 public class OwnerService {
 
@@ -27,6 +27,24 @@ public class OwnerService {
             InMemoryStore.courts.add(c);
             return c;
         }
+    }
+
+    public List<BookingOrder> getAllBookings() {
+        synchronized (InMemoryStore.bookings) {
+            return new ArrayList<>(InMemoryStore.bookings);
+        }
+    }
+
+    public boolean updateBookingStatus(String orderId, String status) {
+        synchronized (InMemoryStore.bookings) {
+            for (BookingOrder b : InMemoryStore.bookings) {
+                if (b.id.equalsIgnoreCase(orderId)) {
+                    b.status = status;
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public int getBookingsCount() {

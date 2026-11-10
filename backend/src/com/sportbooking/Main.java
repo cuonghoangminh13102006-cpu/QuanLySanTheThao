@@ -98,7 +98,7 @@ public class Main {
         System.out.println("   [+] Admin Module    : /api/admin/users, /api/admin/courts, /api/admin/bookings");
         System.out.println("-> GIAO DIỆN FRONTEND ĐÃ ĐƯỢC GẮN THÀNH CÔNG:");
         System.out.println("   [+] Trang chủ Khách hàng   : http://localhost:" + AppConfig.PORT + "/");
-        System.out.println("   [+] Cổng Chủ Sân (Anta)    : http://localhost:" + AppConfig.PORT + "/owner (hoặc /owner.html)");
+        System.out.println("   [+] Cổng Chủ Sân (SportBooking)    : http://localhost:" + AppConfig.PORT + "/owner (hoặc /owner.html)");
         System.out.println("   [+] Cổng Quản Trị Sàn (Ad) : http://localhost:" + AppConfig.PORT + "/admin (hoặc /admin.html)");
         System.out.println("   [+] Đăng nhập / Đăng ký    : http://localhost:" + AppConfig.PORT + "/login.html");
         System.out.println("   [+] Cổng Quản lý cũ (HTML) : http://localhost:" + AppConfig.PORT + "/sportbooking-html/quan-ly-san.html");
