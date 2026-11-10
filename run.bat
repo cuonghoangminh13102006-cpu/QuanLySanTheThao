@@ -1,30 +1,34 @@
 @echo off
-chcp 65001 >nul
+title SportBooking Fullstack Server
+cd /d "%~dp0backend"
+
 echo ==============================================================
-echo       SPORTBOOKING - HỆ THỐNG QUẢN LÝ SÂN THỂ THAO ANTA
+echo       SPORTBOOKING - HE THONG QUAN LY SAN THE THAO ANTA
 echo ==============================================================
 echo.
 
-cd /d "%~dp0\backend"
-
-echo [1/3] Đang kiểm tra mã nguồn Java Backend...
+echo [1/3] Kiem tra ma nguon Java Backend...
 if not exist "bin\com\sportbooking\Main.class" (
-    echo [2/3] Chưa có file biên dịch, đang tiến hành biên dịch javac...
+    echo [2/3] Dang bien dich javac backend...
     if not exist "bin" mkdir bin
-    dir /s /b src\*.java > sources.txt
-    javac -encoding UTF-8 -d bin @sources.txt
-    del sources.txt
+    javac -encoding UTF-8 -sourcepath src -d bin src\com\sportbooking\Main.java
+    if errorlevel 1 (
+        echo.
+        echo [LOI] Bien dich javac that bai! Vui long kiem tra lai Java JDK.
+        pause
+        exit /b 1
+    )
 ) else (
-    echo [2/3] Đã có bản biên dịch sẵn sàng.
+    echo [2/3] Da co ban bien dich san sang.
 )
 
-echo [3/3] Đang khởi động Fullstack Server trên cổng 8080...
+echo [3/3] Dang khoi dong Fullstack Server tren cong 8080...
 echo.
-echo -> Mở trình duyệt tại: http://localhost:8080/
-echo -> Cổng Chủ Sân (Anta)    : http://localhost:8080/owner
-echo -> Cổng Quản Trị Sàn (Ad) : http://localhost:8080/admin
+echo -^> Khach hang dat san : http://localhost:8080/
+echo -^> Cong Chu San       : http://localhost:8080/owner
+echo -^> Cong Quan Tri Vien : http://localhost:8080/admin
 echo.
-echo (Nhấn Ctrl + C để dừng máy chủ)
+echo Nhap Ctrl + C de dung may chu.
 echo ==============================================================
 java -cp bin com.sportbooking.Main
 pause

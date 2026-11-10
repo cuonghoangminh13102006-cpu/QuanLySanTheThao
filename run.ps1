@@ -10,9 +10,12 @@ Set-Location $backendDir
 if (-not (Test-Path "bin\com\sportbooking\Main.class")) {
     Write-Host "[*] Đang biên dịch mã nguồn Java Backend..." -ForegroundColor Yellow
     if (-not (Test-Path "bin")) { New-Item -ItemType Directory -Path "bin" | Out-Null }
-    Get-ChildItem -Path "src" -Recurse -Filter *.java | ForEach-Object { $_.FullName } | Out-File -Encoding ascii sources.txt
-    cmd /c "javac -encoding UTF-8 -d bin @sources.txt"
-    Remove-Item sources.txt -ErrorAction SilentlyContinue
+    javac -encoding UTF-8 -sourcepath src -d bin (Join-Path "src" "com\sportbooking\Main.java")
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[LỖI] Quá trình biên dịch javac thất bại!" -ForegroundColor Red
+        pause
+        exit $LASTEXITCODE
+    }
 }
 
 Write-Host "[*] Khởi động Fullstack Server trên Port 8080..." -ForegroundColor Green
